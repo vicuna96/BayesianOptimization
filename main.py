@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-import numpy
+import numpy as np
 from numpy import random
 import scipy
 from scipy import special
@@ -32,14 +32,14 @@ def load_MNIST_dataset_with_validation_split():
         mnist_data = mnist.MNIST(mnist_data_directory, return_type="numpy", gz=True)
         Xs_tr, Lbls_tr = mnist_data.load_training();
         Xs_tr = Xs_tr.transpose() / 255.0
-        Ys_tr = numpy.zeros((10, 60000))
+        Ys_tr = np.zeros((10, 60000))
         for i in range(60000):
             Ys_tr[Lbls_tr[i], i] = 1.0  # one-hot encode each label
         # shuffle the training data
-        numpy.random.seed(8675309)
-        perm = numpy.random.permutation(60000)
-        Xs_tr = numpy.ascontiguousarray(Xs_tr[:,perm])
-        Ys_tr = numpy.ascontiguousarray(Ys_tr[:,perm])
+        np.random.seed(8675309)
+        perm = np.random.permutation(60000)
+        Xs_tr = np.ascontiguousarray(Xs_tr[:,perm])
+        Ys_tr = np.ascontiguousarray(Ys_tr[:,perm])
         # extract out a validation set
         Xs_va = Xs_tr[:,50000:60000]
         Ys_va = Ys_tr[:,50000:60000]
@@ -48,22 +48,22 @@ def load_MNIST_dataset_with_validation_split():
         # load test data
         Xs_te, Lbls_te = mnist_data.load_testing();
         Xs_te = Xs_te.transpose() / 255.0
-        Ys_te = numpy.zeros((10, 10000))
+        Ys_te = np.zeros((10, 10000))
         for i in range(10000):
             Ys_te[Lbls_te[i], i] = 1.0  # one-hot encode each label
-        Xs_te = numpy.ascontiguousarray(Xs_te)
-        Ys_te = numpy.ascontiguousarray(Ys_te)
+        Xs_te = np.ascontiguousarray(Xs_te)
+        Ys_te = np.ascontiguousarray(Ys_te)
         dataset = (Xs_tr, Ys_tr, Xs_va, Ys_va, Xs_te, Ys_te)
         pickle.dump(dataset, open(PICKLE_FILE, 'wb'))
     return dataset
 
 # compute the cumulative distribution function of a standard Gaussian random variable
 def gaussian_cdf(u):
-    return 0.5*(1.0 + tf.math.erf(u/numpy.sqrt(2.0)))
+    return 0.5*(1.0 + tf.math.erf(u/np.sqrt(2.0)))
 
 # compute the probability mass function of a standard Gaussian random variable
 def gaussian_pmf(u):
-    return tf.math.exp(-u**2/2.0)/numpy.math.sqrt(2.0*numpy.pi)
+    return tf.math.exp(-u**2/2.0)/np.math.sqrt(2.0*np.pi)
 
 
 # compute the Gaussian RBF kernel matrix for a vector of data points (in TensorFlow)
@@ -75,6 +75,11 @@ def gaussian_pmf(u):
 # returns   an (m x n) matrix Sigma where Sigma[i,j] = K(Xs[:,i], Zs[:,j])
 def rbf_kernel_matrix(Xs, Zs, gamma):
     # TODO students should implement this
+    m, n = tf.shape(Xs)[1], tf.shape(Zs)[1]
+    inner = - 2 * tf.matmul(tf.transpose(Xs), Zs)
+    dist = tf.reshape(tf.reduce_sum(Xs ** 2, axis=0), [m, 1]) + tf.reshape(tf.reduce_sum(Zs ** 2, axis=0), [1, n])
+    return tf.exp( - gamma * (dist + inner))
+
 
 # compute the distribution predicted by a Gaussian process that uses an RBF kernel (in TensorFlow)
 #
@@ -87,9 +92,19 @@ def rbf_kernel_matrix(Xs, Zs, gamma):
 def gp_prediction(Xs, Ys, gamma, sigma2_noise):
     # first, do any work that can be shared among predictions
     # TODO students should implement this
+    sigma = rbf_kernel_matrix(Xs, Xs, gamma) + sigma2_noise * tf.eye(tf.shape(Xs)[1])
+
+    toMat = lambda x: tf.reshape(x, [-1, 1])
+
+    inv = tf.linalg.inv(sigma.numpy())
+    inv_y = tf.matmul(inv, toMat(Ys))
     # next, define a nested function to return
     def prediction_mean_and_variance(Xtest):
         # TODO students should implement this
+        k_vec = lambda x_star : rbf_kernel_matrix(Xs, toMat(x_star), gamma)
+        mean = lambda x_star : tf.matmul(tf.transpose(k_vec(x_star)), inv_y)
+        quad = lambda x_star : tf.matmul(tf.transpose(k_vec(x_star)), tf.matmul(inv, k_vec(x_star))) + sigma2_noise
+        variance = lambda x_star : rbf_kernel_matrix( tf.tranpose(toMat(x_star)), toMat(x_star) ) - quad(x_star)
         # construct mean and variance
         return (mean, variance)
     #finally, return the nested function
@@ -105,6 +120,7 @@ def gp_prediction(Xs, Ys, gamma, sigma2_noise):
 # returns   PI acquisition function
 def pi_acquisition(Ybest, mean, stdev):
     # TODO students should implement this
+    pass
 
 
 # compute the expected improvement (EI) acquisition function
@@ -116,6 +132,7 @@ def pi_acquisition(Ybest, mean, stdev):
 # returns   EI acquisition function
 def ei_acquisition(Ybest, mean, stdev):
     # TODO students should implement this
+    pass
 
 
 # return a function that computes the lower confidence bound (LCB) acquisition function
@@ -125,6 +142,7 @@ def ei_acquisition(Ybest, mean, stdev):
 # returns   function that computes the LCB acquisition function
 def lcb_acquisition(kappa):
     def A_lcb(Ybest, mean, stdev):
+        pass
         # TODO students should implement this
     return A_lcb
 
@@ -144,7 +162,7 @@ def lcb_acquisition(kappa):
 #       x_min       the value of x after running iterations of gradient descent
 def gradient_descent(objective, d, alpha, num_iters):
     # construct the tensorflow graph associated with this objective
-    x = tf.Variable(numpy.zeros((d,)))
+    x = tf.Variable(np.zeros((d,)))
     f = objective(x)
     (g, ) = tf.gradients(f, [x])
     sess.run(tf.global_variables_initializer())
@@ -180,11 +198,12 @@ def gradient_descent(objective, d, alpha, num_iters):
 #   Xs              matrix of all points searched (size: d x num_iters)
 def bayes_opt(objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters):
     # TODO students should implement this
+    pass
 
 
 # a one-dimensional test objective function on which to run Bayesian optimization
 def test_objective(x):
-    return (numpy.cos(8.0*x) - 0.3 + (x-0.5)**2)
+    return (np.cos(8.0*x) - 0.3 + (x-0.5)**2)
 
 
 # produce an animation of the predictions made by the Gaussian process in the course of 1-d Bayesian optimization
@@ -206,15 +225,15 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
         gp_pred = gp_prediction(Xsi, Ysi, gamma, sigma2_noise)
         pred_means = []
         pred_variances = []
-        XE = tf.Variable(numpy.zeros((1,)))
+        XE = tf.Variable(np.zeros((1,)))
         (pred_mean, pred_variance) = gp_pred(XE)
         with sess.as_default():
             for x_eval in xs_eval:
-                XE.assign(numpy.array([x_eval])).eval()
+                XE.assign(np.array([x_eval])).eval()
                 pred_means.append(pred_mean.eval().item())
                 pred_variances.append(pred_variance.eval().item())
-        mean_eval.append(numpy.array(pred_means))
-        variance_eval.append(numpy.array(pred_variances))
+        mean_eval.append(np.array(pred_means))
+        variance_eval.append(np.array(pred_variances))
 
     fig, ax = pyplot.subplots()
 
@@ -224,7 +243,7 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
     def animate(i):
         ax = fig.gca()
         ax.clear()
-        ax.fill_between(xs_eval, mean_eval[i] + 2.0*numpy.sqrt(variance_eval[i]), mean_eval[i] - 2.0*numpy.sqrt(variance_eval[i]), color="#eaf1f7")
+        ax.fill_between(xs_eval, mean_eval[i] + 2.0*np.sqrt(variance_eval[i]), mean_eval[i] - 2.0*np.sqrt(variance_eval[i]), color="#eaf1f7")
         ax.plot(xs_eval, objective(xs_eval))
         ax.plot(xs_eval, mean_eval[i], color="r")
         ax.scatter(Xs[0,0:(i+1)], Ys[0:(i+1)])
@@ -249,6 +268,7 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
 # returns   the average gradient of the regularized loss of the examples in vector ii with respect to the model parameters
 def multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W):
     # TODO students should use their implementation from programming assignment 2
+    pass
 
 
 # compute the error of the classifier (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -260,6 +280,7 @@ def multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W):
 # returns   the model error as a percentage of incorrect labels
 def multinomial_logreg_error(Xs, Ys, W):
     # TODO students should use their implementation from programming assignment 1
+    pass
 
 
 # compute the cross-entropy loss of the classifier (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -272,6 +293,7 @@ def multinomial_logreg_error(Xs, Ys, W):
 # returns   the model cross-entropy loss
 def multinomial_logreg_loss(Xs, Ys, gamma, W):
     # TODO students should use their implementation from programming assignment 3
+    pass
 
 
 # SGD + Momentum: run stochastic gradient descent with minibatching, sequential sampling order, and momentum (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -289,6 +311,7 @@ def multinomial_logreg_loss(Xs, Ys, gamma, W):
 # returns         a list of model parameters, one every "monitor_period" batches
 def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor_period):
     # TODO students should implement this
+    pass
 
 
 # produce a function that runs SGD+Momentum on the MNIST dataset, initializing the weights to zero
@@ -306,8 +329,10 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor
 #                       if training diverged (i.e. any of the weights are non-finite) then return 0.1, which corresponds to an error of 1.
 def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
     # TODO students should implement this
+    pass
 
 
 if __name__ == "__main__":
     # TODO students should implement plotting functions here
+    pass
 
