@@ -332,7 +332,7 @@ def multinomial_logreg_loss(Xs, Ys, gamma, W):
     # TODO students should use their implementation from programming assignment 3
     ewx = np.exp(np.matmul(W, Xs))
     logSoft = np.log(ewx / np.sum(ewx, axis=0))
-    return - np.sum(Ys * logSoft) / Xs.shape[1] + gamma / 2 * np.sum(W ** 2)
+    return -np.sum(Ys * logSoft) / Xs.shape[1] + gamma / 2 * np.sum(W ** 2)
 
 
 # SGD + Momentum: run stochastic gradient descent with minibatching, sequential sampling order, and momentum (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -389,7 +389,6 @@ def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
     def train(params):
         models= sgd_mss_with_momentum(Xs_tr, Ys_tr, 10**(-8 * params[0]), W0, 0.5 * params[1], params[2], B,
                                       num_epochs, Xs_tr.shape[1] // B)
-        print("Number of models trained", len(models))
         if np.isinf(models[-1]).any() or np.isnan(models[-1]).any():
             return 0.1
         else:
@@ -433,7 +432,7 @@ if __name__ == "__main__":
 
         f = open("part1.txt",'a')
         for name, x in zip(names, optima):
-            f.write(name+" "+str(x)+'\n')
+            f.write( name + " " + str(x) + '\n')
         f.closed
 
     if args.part2:        
@@ -456,16 +455,60 @@ if __name__ == "__main__":
         
         mnist_dataset = load_MNIST_dataset_with_validation_split()
         objective = mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B)
-        y_best, x_best, Ys, Xs = bayes_opt(objective, d, ker_gamma, sigma2_noise, lcb_acquisition(2), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        y_best, x_best, Ys, Xs = bayes_opt(objective, d, ker_gamma, sigma2_noise, ei_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
         print("Best X", x_best)
         print("Best Y", y_best)
 
-        f = open("part3a_lcb.txt",'a')
+        Xs_tr, Ys_tr, Xs_va, Ys_va, Xs_te, Ys_te = mnist_dataset
+
+        c, _ = Ys_tr.shape
+        d, _ = Xs_tr.shape
+        W0 = np.zeros((c, d))
+
+        models = sgd_mss_with_momentum(Xs_tr, Ys_tr, 10**(-8 * x_best[0]), W0, 0.5 * x_best[1], x_best[2], B,
+                                      num_epochs, d // B)
+
+        val_error = multinomial_logreg_error(Xs_va, Ys_va, models[-1])
+        test_error = multinomial_logreg_error(Xs_te, Ys_te, models[-1])
+
+        f = open("part3a_ei.txt",'a')
         for x, y in zip(Xs.T, Ys):
             f.write( str(x) + " " + str(y) + '\n')
         f.write("Best parameters " + str(x_best) + " " + str(y_best) + '\n')
+        f.write("Validation error %f, Test error %f" % (val_error, test_error))
+
         f.closed
 
     if args.time:
-        pass
+        B, num_epochs = 600, 5
+        ker_gamma = 10
+        sigma2_noise = 0.001
+        kappa = 2
+
+        gd_alpha, gd_nruns, gd_niters = 0.05, 5, 100
+        n_warmup, num_iters = 20, 100
+
+        d = 3
+        random_x =  lambda : np.random.uniform(size=3)
+        
+        mnist_dataset = load_MNIST_dataset_with_validation_split()
+
+        def time_train(params):
+            time = -timeit.default_timer()
+            ans = mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B)(params)
+            time += timeit.default_timer()
+            f = open("time.txt",'a')
+            f.write( "eval " + str(time) + '\n')
+            f.closed
+            return ans
+        
+        time = -timeit.default_timer()
+        y_best, x_best, Ys, Xs = bayes_opt(time_train, d, ker_gamma, sigma2_noise, lcb_acquisition(2), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        time += timeit.default_timer()
+        f = open("time.txt",'a')
+        f.write( "full " + str(time) + '\n')
+        f.closed
+
+
+
         
