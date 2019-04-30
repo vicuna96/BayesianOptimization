@@ -288,7 +288,7 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
 
     ani = animation.FuncAnimation(fig, animate, frames=range(len(Ys)), init_func=anim_init, interval=400, repeat_delay=1000)
 
-    ani.save(filename, writer=writer)
+    ani.save(filename)
 
 
 # compute the gradient of the multinomial logistic regression objective, with regularization (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -400,23 +400,64 @@ def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
 
 if __name__ == "__main__":
     # TODO students should implement plotting functions here
-    gamma = 10
-    sigma2_noise = 0.001
-    random_x =  lambda : np.array([np.random.uniform()])
-    gd_alpha = 0.01
-    gd_nruns = 5
-    gd_niters = 100
-    n_warmup = 3
-    num_iters = 20
-    d = 1
-    x_best = []
-    # acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
-    # for acquisition in acquis:
-    # (y_best, x_best, Ys, Xs) = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
-    # print(x)
-    # x_best.append( x )
-		
-    y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
-    mini, maxi = np.min(Xs), np.max(Xs)
-    xs_eval = np.arange(mini,maxi, (maxi-mini)/15)
-    animate_predictions(test_objective, gamma, sigma2_noise, Ys, Xs, xs_eval, "animation0.mp4")
+    import timeit
+    from argparse import ArgumentParser
+
+    # Define the parser to run script on cmd
+    parser = ArgumentParser(add_help=True)
+    parser.add_argument("--part1", action='store_true',
+                        help="To run part 1 of the assignment")
+    parser.add_argument("--part2", action='store_true',
+                        help="To run part 2 of the assignment")
+    parser.add_argument("--part3", action='store_true',
+                        help="To run part 3 of the assignment")
+    parser.add_argument("--time", action='store_true',
+                        help="To run the time experiment part of the assignment")
+
+    args = parser.parse_args()
+
+    if args.part1:
+        d = 1
+        random_x =  lambda : np.array([np.random.uniform()])
+
+        gamma, sigma2_noise = 10, 0.001
+        gd_alpha, gd_nruns, gd_niters = 0.01, 5, 100
+        n_warmup, num_iters = 3, 20
+
+        optima = []
+        acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
+        names = ["pi", "ei", "lcb"]
+        for acquisition in acquis:
+            y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+            optima.append( x_best )
+
+        f = open("part2a.txt",'a')
+        for name, x in zip(names, optima):
+            f.write(name+" "+str(x)+'\n')
+        f.closed
+
+    if args.part2:        
+        y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        mini, maxi = np.min(Xs), np.max(Xs)
+        xs_eval = np.arange(mini,maxi, (maxi-mini)/15)
+        animate_predictions(test_objective, gamma, sigma2_noise, Ys, Xs, xs_eval, "animation0.mp4")
+
+    if args.part3:
+        B, num_epochs = 600, 5
+        ker_gamma = 10
+        sigma2_noise = 0.001
+        kappa = 2
+
+        gd_alpha, gd_nruns, gd_niters = 0.05, 5, 100
+        n_warmup, num_iters = 3, 20
+
+        d = 3
+        random_x =  lambda : np.random.uniform(size=3)
+        
+        mnist_dataset = load_MNIST_dataset_with_validation_split()
+        objective = mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B)
+        y_best, x_best, Ys, Xs = bayes_opt(objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+
+    if args.time:
+        pass
+        
