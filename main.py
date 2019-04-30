@@ -92,21 +92,21 @@ def rbf_kernel_matrix(Xs, Zs, gamma):
 def gp_prediction(Xs, Ys, gamma, sigma2_noise):
     # first, do any work that can be shared among predictions
     # TODO students should implement this
-    sigma = rbf_kernel_matrix(Xs, Xs, gamma) + sigma2_noise * tf.eye(tf.shape(Xs)[1])
+    sigma = rbf_kernel_matrix(Xs, Xs, gamma) + tf.cast(sigma2_noise * tf.eye(tf.shape(Xs)[1]), tf.float64)
 
     toMat = lambda x: tf.reshape(x, [-1, 1])
 
-    inv = tf.linalg.inv(sigma.numpy())
+    inv = tf.linalg.inv(sigma)
     inv_y = tf.matmul(inv, toMat(Ys))
     # next, define a nested function to return
     def prediction_mean_and_variance(Xtest):
         # TODO students should implement this
         k_vec = lambda x_star : rbf_kernel_matrix(Xs, toMat(x_star), gamma)
-        mean = lambda x_star : tf.matmul(tf.transpose(k_vec(x_star)), inv_y)
+        mean = tf.matmul(tf.transpose(k_vec(Xtest)), inv_y)
         quad = lambda x_star : tf.matmul(tf.transpose(k_vec(x_star)), tf.matmul(inv, k_vec(x_star))) + sigma2_noise
-        variance = lambda x_star : rbf_kernel_matrix( tf.tranpose(toMat(x_star)), toMat(x_star) ) - quad(x_star)
+        variance = rbf_kernel_matrix( tf.transpose(toMat(Xtest)), toMat(Xtest), gamma ) - quad(Xtest)
         # construct mean and variance
-        return (mean, variance)
+        return (mean[0,0], variance[0,0])
     #finally, return the nested function
     return prediction_mean_and_variance
 
@@ -120,7 +120,7 @@ def gp_prediction(Xs, Ys, gamma, sigma2_noise):
 # returns   PI acquisition function
 def pi_acquisition(Ybest, mean, stdev):
     # TODO students should implement this
-    pass
+    return gaussian_cdf( (Ybest - mean) / stdev)
 
 
 # compute the expected improvement (EI) acquisition function
@@ -132,7 +132,8 @@ def pi_acquisition(Ybest, mean, stdev):
 # returns   EI acquisition function
 def ei_acquisition(Ybest, mean, stdev):
     # TODO students should implement this
-    pass
+    Ynormalized = (Ybest - mean) / stdev
+    return - (gaussian_pmf(Ynormalized) + Ynormalized * gaussian_cdf(Ynormalized) ) * stdev
 
 
 # return a function that computes the lower confidence bound (LCB) acquisition function
@@ -142,7 +143,7 @@ def ei_acquisition(Ybest, mean, stdev):
 # returns   function that computes the LCB acquisition function
 def lcb_acquisition(kappa):
     def A_lcb(Ybest, mean, stdev):
-        pass
+        return mean - kappa * stdev
         # TODO students should implement this
     return A_lcb
 
@@ -190,7 +191,7 @@ def gradient_descent(objective, d, alpha, num_iters):
 # gd_niters     number of iterations for gradient descent
 # n_warmup      number of initial warmup evaluations of the objective to use
 # num_iters     number of outer iterations of Bayes optimization to run (including warmup)
-#
+#s
 # returns       tuple of (y_best, x_best, Ys, Xs), where
 #   y_best          objective value of best point found
 #   x_best          best point found
@@ -198,8 +199,40 @@ def gradient_descent(objective, d, alpha, num_iters):
 #   Xs              matrix of all points searched (size: d x num_iters)
 def bayes_opt(objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters):
     # TODO students should implement this
-    pass
+    y_best = np.inf
+    x_best = random_x()
+    Xs, Ys = np.zeros((d, num_iters)), np.zeros((num_iters))
+    for iter in range(n_warmup):
+        x = random_x()
+        Xs[:, iter] = x
+        y = objective(x)
+        Ys[iter] = y
+        if y <= y_best:
+            x_best, y_best = x, y
+        print("iteration", iter)
+    for iter in range(n_warmup, num_iters):
+        lmbd = gp_prediction(Xs[:,:iter], Ys[:iter], gamma, sigma2_noise)
+        def inner_objective(x_test):
+            mean, variance = lmbd(x_test)
+            return acquisition(y_best, mean, variance)
+        grad_des = gradient_descent(inner_objective, d, gd_alpha, gd_niters)
+        sess.run(tf.global_variables_initializer())
+        x_inner, y_inner = [], []
+        with sess.as_default():
+            for _ in range(gd_nruns):
+                x = random_x()
+                some_y, some_x = grad_des(x)
+                x_inner.append(some_x)
+                y_inner.append(objective(x_inner[-1]))
+        ind = np.argmin(y_inner)
+        x, y = x_inner[ind], y_inner[ind]
+        Xs[:, iter], Ys[iter] = x, y
+        if y <= y_best:
+            x_best, y_best = x, y
+        print("iteration", iter)
+        print(y_best, x_best)
 
+    return x_best
 
 # a one-dimensional test objective function on which to run Bayesian optimization
 def test_objective(x):
@@ -268,7 +301,10 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
 # returns   the average gradient of the regularized loss of the examples in vector ii with respect to the model parameters
 def multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W):
     # TODO students should use their implementation from programming assignment 2
-    pass
+    Xs, Ys = Xs[:,ii], Ys[:,ii]
+    ewx = np.exp(np.matmul(W,Xs))
+    p = np.sum(ewx, axis=0)
+    return 1 / Xs.shape[1] * np.matmul(-Ys+ 1/p * ewx, Xs.T) + gamma * W
 
 
 # compute the error of the classifier (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -280,7 +316,7 @@ def multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W):
 # returns   the model error as a percentage of incorrect labels
 def multinomial_logreg_error(Xs, Ys, W):
     # TODO students should use their implementation from programming assignment 1
-    pass
+    return np.mean(np.argmax(np.matmul(W, Xs), axis=0) != np.argmax(Ys, axis=0))
 
 
 # compute the cross-entropy loss of the classifier (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -293,7 +329,9 @@ def multinomial_logreg_error(Xs, Ys, W):
 # returns   the model cross-entropy loss
 def multinomial_logreg_loss(Xs, Ys, gamma, W):
     # TODO students should use their implementation from programming assignment 3
-    pass
+    ewx = np.exp(np.matmul(W, Xs))
+    logSoft = np.log(ewx / np.sum(ewx, axis=0))
+    return - np.sum(Ys * logSoft) / Xs.shape[1] + gamma / 2 * np.sum(W ** 2)
 
 
 # SGD + Momentum: run stochastic gradient descent with minibatching, sequential sampling order, and momentum (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -311,7 +349,19 @@ def multinomial_logreg_loss(Xs, Ys, gamma, W):
 # returns         a list of model parameters, one every "monitor_period" batches
 def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor_period):
     # TODO students should implement this
-    pass
+    n = Xs.shape[1]
+    models = []
+    V0 = 0 * np.zeros(W0.shape)
+    for i in range(num_epochs):
+        cur = i*(n//B)
+        for j in range(n // B):
+            ii = np.arange(j*B,(j+1)*B)
+            V0 = beta * V0 - alpha * multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W0)
+            W0 = W0 + V0
+            if (j+cur+1) % monitor_period == 0:
+                models.append(W0)
+        print("epoch", i)
+    return models
 
 
 # produce a function that runs SGD+Momentum on the MNIST dataset, initializing the weights to zero
@@ -329,10 +379,43 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor
 #                       if training diverged (i.e. any of the weights are non-finite) then return 0.1, which corresponds to an error of 1.
 def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
     # TODO students should implement this
-    pass
+    (Xs_tr, Ys_tr, Xs_te, Ys_te) = mnist_dataset
+
+    c, _ = Ys_tr.shape
+    d, _ = Xs_tr.shape
+    W0 = np.zeros((c, d))
+
+    def train(params):
+        models= sgd_mss_with_momentum(Xs_tr, Ys_tr, 10**(-8 * params[0]), W0, 0.5 * params[1], params[2], B,
+                                      num_epochs, Xs_tr.shape[1] // B)
+        print("Number of models trained", len(models))
+        if np.isinf(models[-1]).any() or np.isnan(models[-1]).any():
+            return 0.1
+        else:
+            return multinomial_logreg_error(Xs_te, Ys_te, models[-1]) - .9
+
+
+
+    return train
 
 
 if __name__ == "__main__":
     # TODO students should implement plotting functions here
-    pass
+    gamma = 10
+    sigma2_noise = 0.001
+    random_x =  lambda : np.array([np.random.uniform()])
+    gd_alpha = 0.01
+    gd_nruns = 5
+    gd_niters = 100
+    n_warmup = 3
+    num_iters = 20
+    d = 1
+    x_best = []
+    acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
+    for acquisition in acquis:
+        x = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        print(x)
+        x_best.append( x )
+
+    print(x_best)
 
