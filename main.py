@@ -104,7 +104,7 @@ def gp_prediction(Xs, Ys, gamma, sigma2_noise):
         k_vec = lambda x_star : rbf_kernel_matrix(Xs, toMat(x_star), gamma)
         mean = tf.matmul(tf.transpose(k_vec(Xtest)), inv_y)
         quad = lambda x_star : tf.matmul(tf.transpose(k_vec(x_star)), tf.matmul(inv, k_vec(x_star))) + sigma2_noise
-        variance = rbf_kernel_matrix( tf.transpose(toMat(Xtest)), toMat(Xtest), gamma ) - quad(Xtest)
+        variance = rbf_kernel_matrix( toMat(Xtest), toMat(Xtest), gamma ) - quad(Xtest)
         # construct mean and variance
         return (mean[0,0], variance[0,0])
     #finally, return the nested function
@@ -361,7 +361,7 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor
             W0 = W0 + V0
             if (j+cur+1) % monitor_period == 0:
                 models.append(W0)
-        print("epoch", i)
+        #print("epoch", i)
     return models
 
 
@@ -380,7 +380,7 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, monitor
 #                       if training diverged (i.e. any of the weights are non-finite) then return 0.1, which corresponds to an error of 1.
 def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
     # TODO students should implement this
-    (Xs_tr, Ys_tr, Xs_te, Ys_te) = mnist_dataset
+    Xs_tr, Ys_tr, Xs_va, Ys_va, Xs_te, Ys_te = mnist_dataset
 
     c, _ = Ys_tr.shape
     d, _ = Xs_tr.shape
@@ -393,7 +393,7 @@ def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
         if np.isinf(models[-1]).any() or np.isnan(models[-1]).any():
             return 0.1
         else:
-            return multinomial_logreg_error(Xs_te, Ys_te, models[-1]) - .9
+            return multinomial_logreg_error(Xs_va, Ys_va, models[-1]) - .9
 
     return train
 
@@ -431,7 +431,7 @@ if __name__ == "__main__":
             y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
             optima.append( x_best )
 
-        f = open("part2a.txt",'a')
+        f = open("part1.txt",'a')
         for name, x in zip(names, optima):
             f.write(name+" "+str(x)+'\n')
         f.closed
@@ -456,7 +456,15 @@ if __name__ == "__main__":
         
         mnist_dataset = load_MNIST_dataset_with_validation_split()
         objective = mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B)
-        y_best, x_best, Ys, Xs = bayes_opt(objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        y_best, x_best, Ys, Xs = bayes_opt(objective, d, ker_gamma, sigma2_noise, lcb_acquisition(kappa), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        print("Best x", x_best)
+        print("Best Y", y_best)
+
+        f = open("part3a_lcb.txt",'a')
+        for x, y in zip(Xs, Ys):
+            f.write( str(x) + " " + str(y) + '\n')
+        f.write("Best parameters " + str(x_best) + " " + str(y_best) + '\n')
+        f.closed
 
     if args.time:
         pass
