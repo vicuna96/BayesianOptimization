@@ -456,12 +456,12 @@ if __name__ == "__main__":
         
         mnist_dataset = load_MNIST_dataset_with_validation_split()
         objective = mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B)
-        y_best, x_best, Ys, Xs = bayes_opt(objective, d, ker_gamma, sigma2_noise, lcb_acquisition(kappa), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
-        print("Best x", x_best)
+        y_best, x_best, Ys, Xs = bayes_opt(objective, d, ker_gamma, sigma2_noise, lcb_acquisition(2), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        print("Best X", x_best)
         print("Best Y", y_best)
 
         f = open("part3a_lcb.txt",'a')
-        for x, y in zip(Xs, Ys):
+        for x, y in zip(Xs.T, Ys):
             f.write( str(x) + " " + str(y) + '\n')
         f.write("Best parameters " + str(x_best) + " " + str(y_best) + '\n')
         f.closed
