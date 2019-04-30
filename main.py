@@ -13,7 +13,7 @@ from matplotlib import pyplot
 import matplotlib.animation as animation
 
 from tqdm import tqdm
-from scipy.special import softmax
+#from scipy.special import softmax
 
 import tensorflow as tf
 sess = tf.Session()
@@ -232,7 +232,7 @@ def bayes_opt(objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns
         print("iteration", iter)
         print(y_best, x_best)
 
-    return x_best
+    return (y_best, x_best, Ys, Xs)
 
 # a one-dimensional test objective function on which to run Bayesian optimization
 def test_objective(x):
@@ -251,6 +251,7 @@ def test_objective(x):
 def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filename):
     mean_eval = []
     variance_eval = []
+    # Set up formatting for the movie files
     for it in range(len(Ys)):
         print("rendering frame %i" % it)
         Xsi = Xs[:, 0:(it+1)]
@@ -287,7 +288,7 @@ def animate_predictions(objective, gamma, sigma2_noise, Ys, Xs, xs_eval, filenam
 
     ani = animation.FuncAnimation(fig, animate, frames=range(len(Ys)), init_func=anim_init, interval=400, repeat_delay=1000)
 
-    ani.save(filename)
+    ani.save(filename, writer=writer)
 
 
 # compute the gradient of the multinomial logistic regression objective, with regularization (SAME AS PROGRAMMING ASSIGNMENT 3)
@@ -394,8 +395,6 @@ def mnist_sgd_mss_with_momentum(mnist_dataset, num_epochs, B):
         else:
             return multinomial_logreg_error(Xs_te, Ys_te, models[-1]) - .9
 
-
-
     return train
 
 
@@ -411,11 +410,13 @@ if __name__ == "__main__":
     num_iters = 20
     d = 1
     x_best = []
-    acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
-    for acquisition in acquis:
-        x = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
-        print(x)
-        x_best.append( x )
-
-    print(x_best)
-
+    # acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
+    # for acquisition in acquis:
+    # (y_best, x_best, Ys, Xs) = bayes_opt(test_objective, d, gamma, sigma2_noise, acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+    # print(x)
+    # x_best.append( x )
+		
+    y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+    mini, maxi = np.min(Xs), np.max(Xs)
+    xs_eval = np.arange(mini,maxi, (maxi-mini)/15)
+    animate_predictions(test_objective, gamma, sigma2_noise, Ys, Xs, xs_eval, "animation0.mp4")
