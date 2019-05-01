@@ -412,16 +412,23 @@ if __name__ == "__main__":
                         help="To run part 3 of the assignment")
     parser.add_argument("--time", action='store_true',
                         help="To run the time experiment part of the assignment")
+    parser.add_argument("--avgtime", action='store_true',
+                        help="To run the time experiment part of the assignment")
+    parser.add_argument("--explore_gamma", action='store_true',
+                        help="To run the time experiment part of the assignment")
+    parser.add_argument("--explore_kappa", action='store_true',
+                        help="To run the time experiment part of the assignment")
 
     args = parser.parse_args()
 
-    if args.part1:
-        d = 1
-        random_x =  lambda : np.array([np.random.uniform()])
+    d = 1
+    random_x = lambda: np.array([np.random.uniform()])
 
-        gamma, sigma2_noise = 10, 0.001
-        gd_alpha, gd_nruns, gd_niters = 0.01, 5, 100
-        n_warmup, num_iters = 3, 20
+    gamma, sigma2_noise = 10, 0.001
+    gd_alpha, gd_nruns, gd_niters = 0.01, 5, 100
+    n_warmup, num_iters = 3, 20
+
+    if args.part1:
 
         optima = []
         acquis = [pi_acquisition, ei_acquisition, lcb_acquisition(2)]
@@ -435,11 +442,59 @@ if __name__ == "__main__":
             f.write( name + " " + str(x) + '\n')
         f.closed
 
-    if args.part2:        
+    if args.part2:
         y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
         mini, maxi = np.min(Xs), np.max(Xs)
         xs_eval = np.arange(mini,maxi, (maxi-mini)/15)
         animate_predictions(test_objective, gamma, sigma2_noise, Ys, Xs, xs_eval, "animation0.mp4")
+
+    if args.explore_gamma:
+        gammas = np.array([1/2500, 1, 2500]) * gamma
+
+        optima_x = []
+        optima_y = []
+
+        for gamma in gammas:
+            y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns,
+                                               gd_alpha, gd_niters, n_warmup, num_iters)
+            f = open("part2_gammas.txt", 'a')
+            f.write('%f \n' % (gamma))
+            for x, y in zip(Xs.T, Ys):
+                f.write(str(x) + " " + str(y) + '\n')
+            f.closed
+            optima_x.append(x_best)
+            optima_y.append(y_best)
+
+        f = open("part2_gammas.txt", 'a')
+        f.write("Results\n")
+        for gamma, x, y in zip(gammas, optima_x, optima_y):
+            f.write( '%f %f %f \n' % (gamma, x, y))
+        f.closed
+
+    if args.explore_kappa:
+        kappa = 2
+        kappas = np.array([1/2500, 1, 2500]) * kappa
+
+        optima_x = []
+        optima_y = []
+
+        for kappa in kappas:
+            y_best, x_best, Ys, Xs = bayes_opt(test_objective, d, gamma, sigma2_noise, lcb_acquisition(kappa), random_x, gd_nruns,
+                                               gd_alpha, gd_niters, n_warmup, num_iters)
+            f = open("part2_kappas.txt", 'a')
+            f.write('%f \n' % (kappa))
+            for x, y in zip(Xs.T, Ys):
+                f.write(str(x) + " " + str(y) + '\n')
+            f.closed
+            optima_x.append(x_best)
+            optima_y.append(y_best)
+
+        f = open("part2_kappas.txt", 'a')
+        f.write("Results\n")
+        for kappa, x, y in zip(kappas, optima_x, optima_y):
+            f.write( '%f %f %f \n' % (kappa, x, y))
+        f.closed
+
 
     if args.part3:
         B, num_epochs = 600, 5
@@ -486,7 +541,7 @@ if __name__ == "__main__":
         kappa = 2
 
         gd_alpha, gd_nruns, gd_niters = 0.05, 5, 100
-        n_warmup, num_iters = 20, 100
+        n_warmup, num_iters = 10, 50
 
         d = 3
         random_x =  lambda : np.random.uniform(size=3)
@@ -503,11 +558,26 @@ if __name__ == "__main__":
             return ans
         
         time = -timeit.default_timer()
-        y_best, x_best, Ys, Xs = bayes_opt(time_train, d, ker_gamma, sigma2_noise, lcb_acquisition(2), random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
+        y_best, x_best, Ys, Xs = bayes_opt(time_train, d, ker_gamma, sigma2_noise, pi_acquisition, random_x, gd_nruns, gd_alpha, gd_niters, n_warmup, num_iters)
         time += timeit.default_timer()
         f = open("time.txt",'a')
         f.write( "full " + str(time) + '\n')
         f.closed
+
+    if args.avgtime:
+        import pandas as pd
+        matrix = pd.read_csv('time.txt', sep=" ", header=None)
+        matrix.columns = ["label", "time"]
+
+        times = np.array(matrix["time"])
+
+        print("Entries recorded", times.size)
+        print("Time spend evaluating", np.sum(times[:-1]))
+        print("Total time spent", np.sum(times[-1]))
+
+        ratio = np.sum(times[:-1]) / times[-1]
+
+        print("Ratio", ratio)
 
 
 
