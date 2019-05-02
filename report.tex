@@ -1,0 +1,93 @@
+\documentclass[10pt]{article}
+\usepackage{pset}
+\usepackage{multicol, graphicx, comment}
+
+\newcommand{\ybest}{y\_best}
+\newcommand{\xbest}{x\_best}
+
+\begin{document}
+
+\title{Programming Assignment 5: Bayesian Optimization}
+\author{CS4787 --- Principles of Large-Scale Machine Learning Systems}
+\date{}
+
+\maketitle
+\textbf{Summary} 
+Over the course of the assignment, I was able to implement a Bayesian optimization algorithm on Tensorflow. As required, I integrated three possible acquisition functions: Probability of Improvement, Expected Improvement, and Lower Confidence Bound. We found that Bayesian optimization with our choice of Gaussian RBF kernel matrix is rather robust with respect to the parameter $\gamma$ - at least in our test objective, and using any any of the three acquisition functions listed above. On the other hand, LCB was rather sensitive to changes in $\kappa$ (on our test objective), with small values of $\kappa$ leading to exploitation, and large values leading to exploration. Nonetheless, with small enough $\kappa$, we were able to approximately find the actual optimal for the test objective. Finally, we optimized over the step size, momentum parameter, and $l_2$ regularization parameter for training on MNIST as done in Assignment 3. We achieved comparable results with relatively little work, given that we optimized over one more hyperparameter than last time. Lastly, we compared the amount of clock time spent evaluating our SGD objective versus the overall runtime of Bayesian optimization to find that the overhead is small when the number of iterations is not huge.
+\begin{multicols}{2}
+
+\textbf{Test Objective}
+I ran Bayesian optimization on the test objective with the parameters given. The outputted $\xbest, \ybest$ as well as the corresponding values of the objective functions are summarized in the table below:
+\begin{center}
+\begin{tabular}{|c|c|c|} \hline
+    activation & $\xbest$ & $\ybest$ \\ \hline
+    pi & 0.39793801 & -1.2887 \\ \hline
+    ei & 0.39693337 & -1.2888 \\ \hline 
+    lcb &  0.39154773 & -1.2882  \\ \hline
+\end{tabular}
+\end{center}
+
+For the animation, I chose to use the probability of improvement acquisition function. The Bayesian optimizer was able to reasonable explore the space, but it certainly concentrated in regions close to $\xbest$ at later times. By the end of the 20 iterations, the $2-\sigma$ area has become minimal around the optima outputted by the algorithm. The animation is attached in the submission.
+
+
+I also explored how the values of the objective outputted by the our algorithm changed as we changed the parameter $\gamma$ for the kernel. I chose to use pi acquisition. In the table below, we record the $\xbest$ and $\ybest$ values outputted by the Bayesian optimization. Even though the values of gamma actually vary by 6 orders of magnitude, the results actually essentially don't change.
+
+\begin{center}
+    \begin{tabular}{|c|c|c|} \hline 
+        $\gamma$ & $\xbest$ & $\ybest$ \\ \hline
+        0.004 & 0.395777 & -1.288834 \\ \hline
+        0.100 &  0.391374 & -1.288144 \\ \hline
+        10.00 & 0.379411 & -1.279813 \\ \hline
+        1000.0 & 0.429926 & -1.251069 \\ \hline
+        25000. & 0.412578 & -1.279738 \\ \hline
+    \end{tabular}
+\end{center}
+
+Clearly, the values of the objective function are comparable, and for a machine learning task any might work well as they might generalize well. On the other hand, the lcb acquisition function is much more sensitive to the $\kappa$ parameter. Below we summarize the outputs of several runs with a fixed $\gamma = 10$ as with the first section of the assignment, but with varying $\kappa$.
+
+\begin{center}
+    \begin{tabular}{|c|c|c|} \hline
+    $\kappa$ & $\xbest$ & $\ybest$ \\ \hline
+    0.001 & 0.395908 & -1.288835 \\ \hline
+    0.020 & 0.395994 & -1.288835 \\ \hline
+    2.00 & 0.390574 & -1.287881 \\ \hline
+    200.0 & -0.352136 & -0.521673 \\ \hline
+    5000.0 & 0.202159 & -0.257751 \\ \hline
+    \end{tabular}
+\end{center}
+
+Indeed, for large values of $\kappa$, the algorithm does not exploit neighborhoods that contain the best points it has seen so far, but rather tries to explore points with higher predicted variance. On the other hand, for small $\kappa$, it really tests all the points in the neighborhoods where it has previously seen the best solutions.
+
+
+
+\textbf{SGD with Momemntum Hyperparameters}
+
+Finally, I used our Bayesian optimization algorithm to optimize the hyperparameters $\alpha$ - the step size, $\beta$ - the momentum parameter, and $\gamma$ - the $l_2$ regularization parameter for training our MNIST model from Assignment 3 using Stochastic Gradient Descent with Momentum. Below we list the values of the hyperparameters that were outputted by our optimizer, as well as the error rates:
+\begin{center}
+    \begin{tabular}{|c|c|c|c|} \hline
+         & pi & ei & lcb \\ \hline 
+        $\alpha$ & 0.92175 & 0.60522 & 1.11984 \\ \hline
+        $\beta$ & 1.55273 & 0.44493 & 0.75982  \\ \hline 
+        $\gamma$ & 0.46958 & 0.91828 & 0.78634 \\ \hline 
+        objective & -0.8181 & -0.8193 & -0.8186 \\ \hline 
+        val error & 0.0819 & 0.0807 & 0.0814 \\ \hline
+        test error & 0.0807 & 0.0794 & 0.0824 \\  \hline 
+    \end{tabular}
+\end{center}
+Note that the values of $\alpha, \beta$ and $\gamma$ above are the normalized values as described in the writeup. As we can see, although the parameters vary a lot over the different acquisition functions, they all attain similar results, and importantly, they attain results quite similar to those we obtained in Assignment 3 - namely, a validation error of about 8\%. We did less work in looking for these parameters, nonetheless, and the only extra work that was required (asides from implementing Bayesian optimization itself - a one time task) was choosing a range of hyperparameters to test, which we also had to do in Assignment 3. This algorithm has more guarantees of finding a suitable solution than random search, and does not require as much computation as grid search (we are optimizing over 3 parameters, yet we ran SGD perhaps less times while obtaining similar results) since it is an educated way of choosing what hyperparameters from the given range to explore! Hence, this is indeed a great tool for hyperparameter optimization.
+
+
+\textbf{Time Efficiency}
+
+
+Lastly, In order to measure the fraction of time that it takes to evaluate the objective, which in this case is training on MNIST using SGD with momentum, I created a wrapper to the \textbf{sgd\_mss\_momentum} function that times the inner SGD optimization and records that information on a text file so that if we evaluate the objective n times, then there
+are n entries in the text file, each of which corresponds to the time it took to compute an execution of SGD. Synchronously, I also record how much time it takes to run the full Bayesian optimization, and that is also written into the text file at the end of training. After this, I load the data and compute the fraction of time
+that the Bayesian optimization routine spent evaluating the objective, and divide this by the total execution time of Bayes opt. 
+
+In my first experiment, I ran the optimization for a total of 20 runs, 3 of which were for warming up. This resulted in 164 s of SGD computation, and an overall time of 209 s. Hence, the ratio is about $\tau = .79$, and the optimization represents only a slight overhead. On the other hand, on a run with a total of 50 iterations, 10 of which were for warming up, it took about 380 s to run SGD, and an overall of 570 s. The ratio in this run was thus $\tau = .66$.
+
+Notice that the ratio $\tau$ can vary depending on the number of total runs of Bayesian optimization we perform. This is the case because computing the kernel takes time proportional to the running number of samples squared, so that on if we run for too many iterations, the cost of computing the kernel increases very rapidly. Nonetheless, for reasonable number of iterations, and for costlier models, it is definitely worth running the Bayesian optimization algorithm.
+
+\end{multicols}
+
+\end{document}

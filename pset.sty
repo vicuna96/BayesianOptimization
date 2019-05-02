@@ -1,0 +1,92 @@
+
+
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{charter}
+
+\usepackage{amsopn,amsmath,amsthm,amssymb}
+
+\usepackage[numbers,sort]{natbib}
+\usepackage{bibentry}
+
+\usepackage[margin=1.25in]{geometry}
+
+\usepackage{changepage,enumitem}
+
+\usepackage{titling}
+\pretitle{\begin{center}\begin{LARGE}\bf}%
+\posttitle{\end{LARGE}\end{center}}%
+\preauthor{\begin{center}\begin{large}}%
+\postauthor{\end{large}\end{center}}%
+\predate{}%
+\postdate{}%
+\setlength{\droptitle}{-1.0cm}
+
+% \usepackage{lastpage}
+% \usepackage{fancyhdr}
+% \pagestyle{fancy}
+% \fancyhead{}
+% \fancyfoot{}
+% \renewcommand{\headrulewidth}{0.0pt}
+% \cfoot{\thepage/\pageref{LastPage}}
+% \fancyhead[R]{\thetitle{} --- \theauthor{}}
+
+\usepackage{graphicx}
+
+\usepackage{etoolbox} 
+\newtoggle{todo}
+\toggletrue{todo}
+
+\usepackage{tabu}
+
+\usepackage{hyperref}  
+\usepackage{url}
+
+\usepackage{booktabs}
+
+\usepackage{parskip}
+
+\bibliographystyle{plainnat}
+
+\newcommand{\assignmentdue}[1]{\textbf{\textcolor{blue}{#1}}}
+
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+
+\newcommand{\Abs}[1]{\left| #1 \right| }
+\newcommand{\Prob}[2][]{\mathbf{P}_{#1}\left( {#2} \right) }
+\newcommand{\Probc}[3][]{\mathbf{P}_{#1}\left( {#2} \middle | {#3} \right) }
+\newcommand{\Exv}[2][]{\mathbf{E}_{#1}\left[ #2 \right]}
+\newcommand{\Exvc}[3][]{\mathbf{E}_{#1}\left[ #2 \middle | {#3} \right]}
+\newcommand{\Var}[2][]{\mathbf{Var}_{#1}\left( #2 \right)}
+\newcommand{\Varc}[3][]{\mathbf{Var}_{#1}\left( #2 \middle | {#3} \right)}
+\newcommand{\Cov}[2][]{\mathbf{Cov}_{#1}\left( #2 \right)}
+\newcommand{\Covc}[3][]{\mathbf{Cov}_{#1}\left( #2 \middle | {#3} \right)}
+\newcommand{\Sample}[2][]{\mathbf{Sample}_{#1}\left( {#2} \right) }
+\newcommand{\Samplec}[3][]{\mathbf{Sample}_{#1}\left( {#2} \middle | {#3} \right) }
+
+\newcommand{\Det}[1]{\left| #1 \right|}
+\newcommand{\Adj}[1]{\mathbf{adj}\left( #1 \right)}
+\newcommand{\trace}[1]{\mathbf{tr}\left( #1 \right)}
+\newcommand{\rank}[1]{\mathbf{rank}\left( #1 \right)}
+\newcommand{\nullity}[1]{\mathbf{nullity}\left( #1 \right)}
+\newcommand{\nullsp}[1]{\mathbf{N}\left( #1 \right)}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Diag}[1]{\mathbf{diag}\left( #1 \right)}
+
+\newcommand{\normf}[1]{\left\| #1 \right\|_F}
+\newcommand{\norm}[1]{\left\| #1 \right\|}
+
+\newcommand{\tvdist}[1]{\left\| #1 \right\|_{\mathrm{TV}}}
+\newcommand{\svdist}[2]{\left\| #1 \right\|_{\mathrm{SV}(#2)}}
+
+\newcommand{\citesomething}{\textcolor{red}{[cite something]}}
+\newcommand{\todo}[1]{\textcolor{red}{\bf [TODO: #1]}}
+
+\newenvironment{answer}
+{\begin{adjustwidth}{20pt}{20pt}\textbf{Answer:}}
+{\end{adjustwidth}}
+
+\newcommand{\calo}{\mathcal{O}}
