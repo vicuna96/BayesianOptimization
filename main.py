@@ -541,7 +541,7 @@ if __name__ == "__main__":
         kappa = 2
 
         gd_alpha, gd_nruns, gd_niters = 0.05, 5, 100
-        n_warmup, num_iters = 10, 50
+        n_warmup, num_iters = 3, 20
 
         d = 3
         random_x =  lambda : np.random.uniform(size=3)
